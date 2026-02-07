@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import csv
 import pika
-import time
 from pathlib import Path
 from datetime import datetime, timezone
 from pyais.stream import IterMessages
@@ -11,16 +10,12 @@ from pyais.stream import IterMessages
 # ==========================================================
 INPUT_QUEUE = "ais_nmea_queue"
 OUTPUT_QUEUE = "cleaned_ais_queue"
-OUT = Path("outputs")
-REM_OUT = Path("rem")
-OUT.mkdir(exist_ok=True)
-REM_OUT.mkdir(exist_ok=True)
 
-# Raw CSV for reference
-RAW_CSV = "input/AIS_Klaipeda_From20250908_To20251008 2.csv"
+OUT = Path("outputs")
+OUT.mkdir(exist_ok=True)
 
 # ==========================================================
-# MESSAGE CATEGORY MAPPING
+# MESSAGE CATEGORY MAP
 # ==========================================================
 MESSAGE_MAP = {
     1: "dynamic_position",
@@ -46,41 +41,68 @@ MESSAGE_MAP = {
 SCHEMAS = {
     "dynamic_position": [
         "msg_type","repeat","mmsi","status","turn","speed","accuracy",
-        "lon","lat","course","heading","second","maneuver","raim","radio","timestamp"
+        "lon","lat","course","heading","second","maneuver","raim","radio",
+        "timestamp","source"
     ],
     "static_position": [
         "msg_type","repeat","mmsi","speed","accuracy","lon","lat",
         "course","heading","second","cs","display","dsc","band",
-        "msg22","assigned","raim","radio","timestamp"
+        "msg22","assigned","raim","radio",
+        "timestamp","source"
     ],
     "voyage_info": [
-        "msg_type","repeat","mmsi","partno","shipname","timestamp"
+        "msg_type","repeat","mmsi","partno","shipname",
+        "timestamp","source"
     ],
     "base_station": [
         "msg_type","repeat","mmsi","year","month","day",
-        "hour","minute","second","accuracy","lon","lat","epfd","raim","radio","timestamp"
+        "hour","minute","second","accuracy","lon","lat","epfd","raim","radio",
+        "timestamp","source"
     ],
     "navigation_aid": [
         "msg_type","repeat","mmsi","aid_type","name",
-        "accuracy","lon","lat","timestamp"
+        "accuracy","lon","lat",
+        "timestamp","source"
     ],
     "safety_messages": [
-        "msg_type","repeat","mmsi","timestamp"
+        "msg_type","repeat","mmsi",
+        "timestamp","source"
     ],
     "binary_misc": [
-        "msg_type","repeat","mmsi","timestamp"
+        "msg_type","repeat","mmsi",
+        "timestamp","source"
     ]
 }
 
 # ==========================================================
-# UTILITY FUNCTIONS
+# TAG BLOCK PARSER (CHECKSUM SAFE)
 # ==========================================================
-def valid_mmsi(mmsi):
-    try:
-        return int(mmsi) > 0
-    except Exception:
-        return False
+def extract_tagblock(line: str):
+    timestamp = None
+    source = None
 
+    if "\\!" in line:
+        tag_part, nmea_part = line.split("\\!", 1)
+        tag_part = tag_part.strip("\\ ")
+
+        for field in tag_part.split(","):
+            if field.startswith("c:"):
+                raw_ts = field.split(":", 1)[1]
+                raw_ts = raw_ts.split("*", 1)[0]  # ⭐ FIX
+                timestamp = datetime.fromtimestamp(
+                    int(raw_ts), tz=timezone.utc
+                ).isoformat()
+
+            elif field.startswith("s:"):
+                source = field.split(":", 1)[1]
+
+        return timestamp, source, "!" + nmea_part
+
+    return None, None, line.strip()
+
+# ==========================================================
+# BASIC CLEANING
+# ==========================================================
 def valid_lat(lat):
     try:
         return -90 <= float(lat) <= 90
@@ -93,69 +115,25 @@ def valid_lon(lon):
     except Exception:
         return False
 
-def valid_sog(sog):
-    try:
-        return float(sog) >= 0
-    except Exception:
-        return False
-
 def clean_row(category, row):
-    """Return True if row is valid, False otherwise"""
-    if category not in ("base_station","binary_misc"):
-        if not valid_mmsi(row.get("mmsi")):
-            return False
     if category in ("dynamic_position","static_position","navigation_aid"):
-        if not valid_lat(row.get("lat")) or not valid_lon(row.get("lon")):
-            return False
-    if category in ("dynamic_position","static_position"):
-        if not valid_sog(row.get("speed")):
-            return False
+        return valid_lat(row.get("lat")) and valid_lon(row.get("lon"))
     return True
 
-def filter_row(category, row):
-    return {k: row.get(k) for k in SCHEMAS[category]}
-
-def generate_rem_event(category, row):
-    """Generate REM event only for dynamic, static, safety messages"""
-    if category not in ["dynamic_position","static_position","safety_messages"]:
-        return None
-    return {
-        "event_type": category,
-        "mmsi": row.get("mmsi"),
-        "lat": row.get("lat"),
-        "lon": row.get("lon"),
-        "sog": row.get("speed", 0),
-        "cog": row.get("course", 0),
-        "heading": row.get("heading", 0),
-        "timestamp": datetime.now(timezone.utc).isoformat()
-    }
-
 # ==========================================================
-# WRITERS
+# CSV WRITERS
 # ==========================================================
 writers = {}
 files = {}
-rem_writer = None
-rem_file = None
 
 def get_writer(category):
     if category not in writers:
         f = open(OUT / f"{category}.csv", "w", newline="", encoding="utf-8")
-        w = csv.DictWriter(f, fieldnames=SCHEMAS[category], extrasaction="ignore")
+        w = csv.DictWriter(f, fieldnames=SCHEMAS[category])
         w.writeheader()
         writers[category] = w
         files[category] = f
     return writers[category]
-
-def get_rem_writer():
-    global rem_writer, rem_file
-    if not rem_writer:
-        rem_file = open(REM_OUT / "rem_events.csv", "w", newline="", encoding="utf-8")
-        rem_writer = csv.DictWriter(rem_file, fieldnames=[
-            "event_type","mmsi","lat","lon","sog","cog","heading","timestamp"
-        ])
-        rem_writer.writeheader()
-    return rem_writer
 
 # ==========================================================
 # RABBITMQ SETUP
@@ -169,18 +147,21 @@ channel.queue_declare(queue=OUTPUT_QUEUE, durable=True)
 print("📡 Connected to RabbitMQ, waiting for AIS messages...")
 
 # ==========================================================
-# PROCESS MESSAGES
+# MAIN LOOP
 # ==========================================================
 try:
-    for method_frame, properties, body in channel.consume(INPUT_QUEUE, inactivity_timeout=1):
+    for method, props, body in channel.consume(INPUT_QUEUE, inactivity_timeout=1):
         if body is None:
             continue
 
-        # Decode messages from NMEA bytes
+        raw_line = body.decode(errors="ignore").strip()
+        ts, src, clean_nmea = extract_tagblock(raw_line)
+
         try:
-            for msg in IterMessages(body):
+            for msg in IterMessages(clean_nmea.encode()):
                 decoded = msg.decode().asdict()
-                decoded["timestamp"] = datetime.now(timezone.utc).isoformat()
+                decoded["timestamp"] = ts
+                decoded["source"] = src
 
                 msg_type = decoded.get("msg_type")
                 category = MESSAGE_MAP.get(msg_type, "binary_misc")
@@ -188,16 +169,10 @@ try:
                 if not clean_row(category, decoded):
                     continue
 
-                # Write CSV
-                writer = get_writer(category)
-                writer.writerow(filter_row(category, decoded))
+                get_writer(category).writerow(
+                    {k: decoded.get(k) for k in SCHEMAS[category]}
+                )
 
-                # REM events
-                rem = generate_rem_event(category, decoded)
-                if rem:
-                    get_rem_writer().writerow(rem)
-
-                # Send cleaned message to output queue
                 channel.basic_publish(
                     exchange="",
                     routing_key=OUTPUT_QUEUE,
@@ -206,18 +181,15 @@ try:
                 )
 
         except Exception as e:
-            print("❌ Decode error:", e)
-            print("Raw NMEA:", body)
+            print("Decode error:", e)
+            print("Raw:", raw_line)
 
 except KeyboardInterrupt:
-    print("\n🛑 Stopping pipeline...")
+    print("\nStopping pipeline...")
 
 finally:
-    # Flush CSVs
     for f in files.values():
         f.close()
-    if rem_file:
-        rem_file.close()
     channel.close()
     connection.close()
-    print("✅ CSV + REM flushed successfully")
+    print("CSV flushed successfully")
