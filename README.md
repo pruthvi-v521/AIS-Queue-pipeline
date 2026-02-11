@@ -1,112 +1,50 @@
-# AIS Real-Time Processing Pipeline
+# AIS Pipeline – Setup and Run Guide
 
 ## Overview
 
-This project implements a **real-time AIS (Automatic Identification System) data processing pipeline**. The pipeline ingests AIS CSV data, decodes and enriches messages, and makes the processed data available for downstream analysis and visualization.
+This project implements a real-time AIS (Automatic Identification System) data processing pipeline.
 
-The system is fully containerized, supports modular microservices, and includes basic operational monitoring.
+The system:
 
----
+* Reads AIS CSV files
+* Publishes messages to RabbitMQ
+* Processes and enriches AIS data
+* Stores cleaned results for downstream analysis
+* Runs fully containerized using Docker Compose
 
-## Current Status
-
-### Core Pipeline (Completed)
-- **System Containerization & Orchestration**
-  - All major components (ingest, processor, RabbitMQ) are containerized with Docker.
-  - Docker Compose defines service dependencies, networking, and persistent storage for RabbitMQ.
-  - Environment variables are configurable for development and deployment.
-
-- **Stream Robustness & Fault Tolerance**
-  - Durable RabbitMQ queues ensure messages are not lost.
-  - Restart policies (`always` / `on-failure`) are applied to all services.
-  - Temporary RabbitMQ downtime is handled using retry/wait scripts.
-
-- **Metadata Enrichment & Pipeline Support**
-  - AIS messages are enriched with `station_id` and `timestamp`.
-  - Modular architecture is ready for future services (e.g., anomaly detection).
-
-- **Monitoring & Health Metrics Logging**
-  - Healthchecks implemented for RabbitMQ and processor containers.
-  - Processor logs message counters every 100 messages to track throughput.
-
----
-
-## Pipeline Flow Diagram
-
-CSV Reader
-   ↓
-NMEA Message Ingestion
-   ↓
-[Deployment: Containerized Ingest Service] ✅
-   ↓
-RabbitMQ Queue (Durable, Persistent) ✅
-   ↓
-[Deployment: Queue Configuration, Fault Tolerance, Monitoring] ✅
-   ↓
-Realtime Processing Server ✅
-   ↓
-Decoding (pyais) ✅
-   ↓
-Splitting by msg_type ✅
-   ↓
-Normalization (REM Events) ✅
-   ↓
-[Deployment: Metadata Enrichment
- Station ID, Timestamps, Processing Stage] ✅
-   ↓
-Memory Cache ⚪
-   ↓
-Correlation Engine ⚪
-   ↓
-Cleaning / Filtering ✅
-   ↓
-[Deployment: Optional Quality Control Services
- Trajectory Prediction / Anomaly Detection (Infrastructure Support)] ✅
-   ↓
-Storage (PostgreSQL DB) ⚪
-   ↓
-[Deployment: Persistent Volumes, Backup, Environment Management] ✅
-   ↓
-Analysis Layer ⚪
-   ↓
-API Layer ⚪
-   ↓
-Frontend Visualization ⚪
-
-# AIS Pipeline – Setup and Run Guide
-
-This document explains how to set up and run the complete AIS real-time processing pipeline locally using Docker.
-
-The system is fully containerized, so no manual Python installation or dependency setup is required.
+No manual Python installation is required.
 
 ---
 
 # Prerequisites
 
-Install the following:
+Install:
 
 ## 1. Docker Desktop
 
-* Mac / Windows: Docker Desktop
-* Linux: Docker Engine + Docker Compose
+Mac / Windows: Docker Desktop
+Linux: Docker Engine + Docker Compose
 
-Verify installation:
+Verify:
 
-```bash
 docker --version
 docker compose version
-```
 
 ---
 
-# Project Structure (Expected)
+# Project Structure
 
-```
+Your project should look like this:
+
 AIS-Queue-pipeline/
 │
 ├── docker-compose.yml
 ├── Dockerfile
 ├── wait-for-rabbitmq.sh
+├── requirements.txt
+│
+├── input/                ← REQUIRED (place CSV here)
+├── outputs/              ← auto-created
 │
 ├── ingest/
 │   └── csv_to_queue.py
@@ -115,9 +53,27 @@ AIS-Queue-pipeline/
 │   ├── realtime_pipeline.py
 │   └── healthcheck.py
 │
-├── outputs/          # auto-created (CSV outputs)
-├── rem/              # metadata files (optional)
-```
+├── rem/
+└── README.md
+
+---
+
+# IMPORTANT – Input Data Requirement
+
+Before running the pipeline, you MUST place your AIS CSV file inside the `input/` folder.
+
+Example:
+
+input/
+└── AIS_Klaipeda_From20250908_To20250909.csv
+
+The ingest service automatically reads files from this folder and publishes them to RabbitMQ.
+
+If this folder is empty:
+
+* No messages will be produced
+* Processor will appear idle
+* No outputs will be generated
 
 ---
 
@@ -125,47 +81,49 @@ AIS-Queue-pipeline/
 
 ## Step 1 — Clone repository
 
-```bash
 git clone <your-repo-url>
 cd AIS-Queue-pipeline
-```
 
 ---
 
-## Step 2 — Build containers
+## Step 2 — Add your CSV file
 
-Build images for ingest and processor:
+Create input folder if it doesn't exist:
 
-```bash
+mkdir input
+
+Copy your AIS CSV:
+
+cp your_file.csv input/
+
+---
+
+## Step 3 — Build containers
+
 docker compose build
-```
 
 ---
 
-## Step 3 — Start the pipeline
+## Step 4 — Start the pipeline
 
-```bash
 docker compose up
-```
 
 Run in background:
 
-```bash
 docker compose up -d
-```
 
 ---
 
 # What Starts Automatically
 
-When Docker Compose starts, the following services run:
+When Docker starts, these services run:
 
-| Service          | Purpose                                     |
-| ---------------- | ------------------------------------------- |
-| rabbitmq         | Message broker with durable queues          |
-| ingest           | Reads CSV and pushes AIS NMEA to queue      |
-| processor        | Decodes, cleans, enriches, writes CSV       |
-| anomaly-detector | Dummy optional module for future extensions |
+| Service          | Purpose                             |
+| ---------------- | ----------------------------------- |
+| rabbitmq         | Message broker (durable queue)      |
+| ingest           | Reads CSV → publishes messages      |
+| processor        | Decodes + enriches + writes CSV     |
+| anomaly-detector | Dummy service for modular extension |
 
 ---
 
@@ -173,175 +131,135 @@ When Docker Compose starts, the following services run:
 
 ## View logs
 
-Processor logs:
+Processor:
 
-```bash
 docker compose logs -f processor
-```
 
-RabbitMQ logs:
+RabbitMQ:
 
-```bash
 docker compose logs -f rabbitmq
-```
 
 ---
 
-## RabbitMQ Dashboard
+# RabbitMQ Dashboard
 
-Open in browser:
+Open:
 
-```
 http://localhost:15672
-```
 
-Login credentials:
+Credentials:
 
-```
 Username: ais
 Password: aispass
-```
 
-From the dashboard you can:
+You can:
 
 * Inspect queues
-* Monitor message counts
-* Check consumers
+* See message counts
+* Monitor consumers
 
 ---
 
-# Output Files
+# Outputs
 
-Processed CSV files are written to:
+Processed results are written to:
 
-```
-./outputs/
-```
+outputs/
 
-Examples:
+Example files:
 
-```
-dynamic_position.csv
-voyage_info.csv
-navigation_aid.csv
-```
+* dynamic_position.csv
+* voyage_info.csv
+* navigation_aid.csv
 
 ---
 
-# Restart and Stop
+# Health Checks
 
-Stop services:
+Check service status:
 
-```bash
-docker compose down
-```
-
-Stop and remove volumes:
-
-```bash
-docker compose down -v
-```
-
-Restart:
-
-```bash
-docker compose up -d
-```
-
----
-
-# Healthchecks
-
-Check container health:
-
-```bash
 docker compose ps
-```
 
-Healthy services will display:
+Healthy services show:
 
-```
 healthy
-```
 
 ---
 
 # Metrics
 
-Processor logs throughput information:
+Processor logs progress:
 
-```
 Processed 100 messages
 Processed 200 messages
-```
 
-This confirms:
-
-* Messages are flowing
-* Queue is working
-* Processor is active
+This confirms the pipeline is running correctly.
 
 ---
 
-# Adding New Services (Optional)
+# Stop / Restart
 
-To add new modules such as collision detection or analytics, add a new service in `docker-compose.yml`:
+Stop:
 
-```yaml
+docker compose down
+
+Remove volumes:
+
+docker compose down -v
+
+Restart:
+
+docker compose up -d
+
+---
+
+# Adding New Services
+
+The architecture is modular.
+
+To add new components (analysis, collision detection, etc.), add a new service in docker-compose.yml:
+
 my-service:
-  build: .
-  command: python analysis/service.py
-  depends_on:
-    - rabbitmq
-```
+build: .
+command: python analysis/service.py
+depends_on:
+- rabbitmq
 
-Services can consume messages from:
-
-```
-cleaned_ais_queue
-```
+Services can consume from the cleaned AIS queue.
 
 ---
 
 # Troubleshooting
 
-## RabbitMQ not starting
-
-```bash
-docker compose down -v
-docker compose up --build
-```
-
-## Processor stuck waiting
+## Nothing happens
 
 Check:
 
-```bash
-docker compose logs rabbitmq
-```
+* CSV exists inside input/
+* ingest logs show publishing
+* processor logs show processing
 
-## No CSV output
+## RabbitMQ issues
 
-Ensure:
+docker compose down -v
+docker compose up --build
 
-* ingest is publishing messages
-* processor logs show message counts
+## No output files
+
+Ensure messages are being processed in logs.
 
 ---
 
 # Quick Start
 
-```bash
+mkdir input
+copy your CSV into input/
+
 docker compose build
 docker compose up
-```
 
-Then open:
+Open:
 
-```
 http://localhost:15672
-```
 
-The pipeline should now be running.
-
-
+Pipeline should now be running.
