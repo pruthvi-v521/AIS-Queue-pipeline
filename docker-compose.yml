@@ -1,0 +1,64 @@
+
+services:
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=ais
+      - RABBITMQ_DEFAULT_PASS=aispass
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    restart: always
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  processor:
+    build: .
+    container_name: processor
+    environment:
+      - RABBIT_HOST=rabbitmq
+      - RABBIT_USER=ais
+      - RABBIT_PASS=aispass
+      - STATION_ID=station-1
+    depends_on:
+      - rabbitmq
+    volumes:
+      - ./outputs:/app/outputs
+      - ./rem:/app/rem
+      - ./wait-for-rabbitmq.sh:/app/wait-for-rabbitmq.sh
+    entrypoint: ["/app/wait-for-rabbitmq.sh", "python", "processor/realtime_pipeline.py"]
+    restart: always
+    healthcheck:
+      test: ["CMD", "python", "processor/healthcheck.py"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  ingest:
+    build: .
+    container_name: ingest
+    environment:
+      - RABBIT_HOST=rabbitmq
+      - RABBIT_USER=ais
+      - RABBIT_PASS=aispass
+    depends_on:
+      - rabbitmq
+    volumes:
+      - ./wait-for-rabbitmq.sh:/app/wait-for-rabbitmq.sh
+    entrypoint: ["/app/wait-for-rabbitmq.sh", "python", "ingest/csv_to_queue.py"]
+    restart: on-failure
+
+  anomaly-detector:
+    image: alpine
+    command: ["sh", "-c", "while true; do sleep 60; done"]
+    restart: always
+
+volumes:
+  rabbitmq_data:
