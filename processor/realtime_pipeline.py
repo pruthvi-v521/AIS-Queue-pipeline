@@ -7,7 +7,7 @@ from pyais import decode
 import re
 
 
-# CONFIGURATION (ONLY THESE 3 QUEUES WILL EXIST)
+# CONFIGURATION (These 3 queues)
 
 
 INPUT_QUEUE = "ais_nmea_queue"
