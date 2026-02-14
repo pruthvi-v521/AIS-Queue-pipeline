@@ -14,7 +14,7 @@ channel = connection.channel()
 # Declare a durable queue
 channel.queue_declare(queue=QUEUE_NAME, durable=True)
 
-print("📤 CSV Reader started...")
+print("CSV Reader started...")
 
 with open(CSV_FILE, newline="", encoding="utf-8") as f:
     reader = csv.reader(f)
