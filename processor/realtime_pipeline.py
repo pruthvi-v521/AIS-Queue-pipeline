@@ -1,251 +1,341 @@
-#!/usr/bin/env python3
-
-import csv
-import os
-import time
 import pika
 import json
-from pathlib import Path
+import csv
+import os
 from datetime import datetime, timezone
-from pyais.stream import IterMessages
+from pyais import decode
+import re
 
-# ==========================================================
-# ENV CONFIG
-# ==========================================================
-RABBIT_HOST = os.getenv("RABBIT_HOST", "rabbitmq")
-RABBIT_USER = os.getenv("RABBIT_USER", "ais")
-RABBIT_PASS = os.getenv("RABBIT_PASS", "aispass")
-STATION_ID = os.getenv("STATION_ID", "KLAIPEDA_01")
+
+# CONFIGURATION (ONLY THESE 3 QUEUES WILL EXIST)
+
 
 INPUT_QUEUE = "ais_nmea_queue"
-OUTPUT_QUEUE = "cleaned_ais_queue"
+ANALYSIS_QUEUE = "analysis_queue"
+VISUALIZATION_QUEUE = "visualization_queue"
 
-OUT = Path("outputs")
-REM_OUT = Path("rem")
+OUTPUT_DIR = "output_csv"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-OUT.mkdir(exist_ok=True)
-REM_OUT.mkdir(exist_ok=True)
 
-# ==========================================================
-# MESSAGE CATEGORY MAP
-# ==========================================================
-MESSAGE_MAP = {
-    1: "dynamic_position",
-    2: "dynamic_position",
-    3: "dynamic_position",
-    18: "static_position",
-    19: "static_position",
-    5: "voyage_info",
-    24: "voyage_info",
-    4: "base_station",
-    21: "navigation_aid",
-    7: "safety_messages",
-    10: "safety_messages",
-    12: "safety_messages",
-    13: "safety_messages",
-    14: "safety_messages",
-    15: "safety_messages"
-}
+# RABBITMQ CONNECTION
 
-# ==========================================================
-# SCHEMAS (+ station_id kept)
-# ==========================================================
-SCHEMAS = {
-    "dynamic_position": ["msg_type","repeat","mmsi","status","turn","speed","accuracy",
-                         "lon","lat","course","heading","second","maneuver","raim","radio",
-                         "timestamp","source","station_id"],
+connection = pika.BlockingConnection(
+    pika.ConnectionParameters(host="localhost")
+)
 
-    "static_position": ["msg_type","repeat","mmsi","speed","accuracy","lon","lat",
-                        "course","heading","second","cs","display","dsc","band",
-                        "msg22","assigned","raim","radio",
-                        "timestamp","source","station_id"],
-
-    "voyage_info": ["msg_type","repeat","mmsi","partno","shipname",
-                    "timestamp","source","station_id"],
-
-    "base_station": ["msg_type","repeat","mmsi","year","month","day",
-                     "hour","minute","second","accuracy","lon","lat",
-                     "epfd","raim","radio","timestamp","source","station_id"],
-
-    "navigation_aid": ["msg_type","repeat","mmsi","aid_type","name",
-                       "accuracy","lon","lat","timestamp","source","station_id"],
-
-    "safety_messages": ["msg_type","repeat","mmsi","timestamp","source","station_id"],
-    "binary_misc": ["msg_type","repeat","mmsi","timestamp","source","station_id"]
-}
-
-# ==========================================================
-# VALIDATION
-# ==========================================================
-def valid_mmsi(m): 
-    try: return int(m) > 0
-    except: return False
-
-def valid_lat(v): 
-    try: return -90 <= float(v) <= 90
-    except: return False
-
-def valid_lon(v): 
-    try: return -180 <= float(v) <= 180
-    except: return False
-
-def valid_sog(v): 
-    try: return float(v) >= 0
-    except: return False
-
-def clean_row(category, row):
-    if category not in ("base_station","binary_misc"):
-        if not valid_mmsi(row.get("mmsi")): return False
-
-    if category in ("dynamic_position","static_position","navigation_aid"):
-        if not valid_lat(row.get("lat")) or not valid_lon(row.get("lon")): return False
-
-    if category in ("dynamic_position","static_position"):
-        if not valid_sog(row.get("speed")): return False
-
-    return True
-
-def filter_row(category, row):
-    return {k: row.get(k) for k in SCHEMAS[category]}
-
-# ==========================================================
-# TAG BLOCK PARSER
-# ==========================================================
-def extract_tagblock(line):
-    timestamp, source = None, None
-
-    if "\\!" in line:
-        tag, nmea = line.split("\\!",1)
-
-        for f in tag.split(","):
-            if f.startswith("c:"):
-                ts = f.split(":",1)[1].split("*")[0]
-                timestamp = datetime.fromtimestamp(int(ts),tz=timezone.utc).isoformat()
-            if f.startswith("s:"):
-                source = f.split(":",1)[1]
-
-        return timestamp, source, "!" + nmea
-
-    return None, None, line.strip()
-
-# ==========================================================
-# REM EVENT GENERATOR
-# ==========================================================
-def generate_rem_event(category, row):
-    if category not in ["dynamic_position","static_position","safety_messages"]:
-        return None
-
-    return {
-        "event_type": category,
-        "mmsi": row.get("mmsi"),
-        "lat": row.get("lat"),
-        "lon": row.get("lon"),
-        "sog": row.get("speed",0),
-        "cog": row.get("course",0),
-        "heading": row.get("heading",0),
-        "timestamp": row.get("timestamp"),
-        "source": row.get("source")
-    }
-
-# ==========================================================
-# FILE WRITERS
-# ==========================================================
-writers, files = {}, {}
-rem_writer, rem_file = None, None
-
-def get_writer(cat):
-    if cat not in writers:
-        f = open(OUT/f"{cat}.csv","w",newline="",encoding="utf-8")
-        w = csv.DictWriter(f,fieldnames=SCHEMAS[cat])
-        w.writeheader()
-        writers[cat]=w; files[cat]=f
-    return writers[cat]
-
-def get_rem_writer():
-    global rem_writer, rem_file
-    if not rem_writer:
-        rem_file=open(REM_OUT/"rem_events.csv","w",newline="",encoding="utf-8")
-        rem_writer=csv.DictWriter(rem_file,
-            fieldnames=["event_type","mmsi","lat","lon","sog","cog","heading","timestamp","source"])
-        rem_writer.writeheader()
-    return rem_writer
-
-# ==========================================================
-# SAFE CONNECT (retry)
-# ==========================================================
-def connect():
-    creds = pika.PlainCredentials(RABBIT_USER,RABBIT_PASS)
-
-    for i in range(15):
-        try:
-            conn=pika.BlockingConnection(
-                pika.ConnectionParameters(host=RABBIT_HOST,credentials=creds))
-            print("Connected to RabbitMQ")
-            return conn
-        except pika.exceptions.AMQPConnectionError:
-            print("Retrying RabbitMQ...")
-            time.sleep(2)
-
-    raise RuntimeError("RabbitMQ unavailable")
-
-# ==========================================================
-# MAIN
-# ==========================================================
-connection = connect()
 channel = connection.channel()
 
+# declare ONLY these queues
 channel.queue_declare(queue=INPUT_QUEUE, durable=True)
-channel.queue_declare(queue=OUTPUT_QUEUE, durable=True)
+channel.queue_declare(queue=ANALYSIS_QUEUE, durable=True)
+channel.queue_declare(queue=VISUALIZATION_QUEUE, durable=True)
 
-count = 0
-print("Waiting for AIS messages...")
+print("Connected to RabbitMQ")
+print("Receiving from:", INPUT_QUEUE)
+print("Sending to:", ANALYSIS_QUEUE, "and", VISUALIZATION_QUEUE)
+
+
+
+# CSV HANDLING
+
+
+csv_files = {}
+csv_writers = {}
+
+def get_csv_writer(msg_type, fieldnames):
+
+    filename = f"{OUTPUT_DIR}/msg_type_{msg_type}.csv"
+
+    if msg_type not in csv_files:
+
+        file_exists = os.path.exists(filename)
+
+        f = open(filename, "a", newline="", encoding="utf-8")
+
+        writer = csv.DictWriter(
+            f,
+            fieldnames=fieldnames,
+            extrasaction="ignore"
+        )
+
+        if not file_exists:
+            writer.writeheader()
+
+        csv_files[msg_type] = f
+        csv_writers[msg_type] = writer
+
+    return csv_writers[msg_type]
+
+
+
+# CHECKSUM VALIDATION
+
+def valid_nmea_checksum(nmea):
+
+    try:
+
+        match = re.match(r'!(.*)\*(\w\w)', nmea)
+
+        if not match:
+            return False
+
+        data, checksum = match.groups()
+
+        calc = 0
+        for char in data:
+            calc ^= ord(char)
+
+        return calc == int(checksum, 16)
+
+    except:
+        return False
+
+
+
+# EXTRACT TAGBLOCK (timestamp and source)
+
+
+def extract_tagblock(raw_line):
+
+    source = None
+    timestamp = None
+    clean_nmea = raw_line
+
+    if raw_line.startswith("\\"):
+
+        try:
+
+            parts = raw_line.split("\\")
+
+            tagblock = parts[1]
+            clean_nmea = parts[2]
+
+            fields = tagblock.split(",")
+
+            for field in fields:
+
+                if field.startswith("s:"):
+                    source = field.split(":", 1)[1]
+
+                elif field.startswith("c:"):
+
+                    ts = field.split(":", 1)[1]
+                    ts = ts.split("*")[0]
+
+                    timestamp = datetime.fromtimestamp(
+                        int(ts),
+                        timezone.utc
+                    ).isoformat()
+
+        except Exception as e:
+            print("Tagblock parse error:", e)
+
+    return timestamp, source, clean_nmea
+
+
+
+# MAKE JSON SAFE
+
+
+def make_json_safe(data):
+
+    if isinstance(data, dict):
+        return {k: make_json_safe(v) for k, v in data.items()}
+
+    elif isinstance(data, list):
+        return [make_json_safe(v) for v in data]
+
+    elif isinstance(data, bytes):
+        return data.decode("utf-8", errors="ignore")
+
+    else:
+        return data
+
+
+
+# FRAGMENT BUFFER
+
+
+fragment_buffer = {}
+
+
+# PROCESS MESSAGE
+
+
+def process_message(raw_line):
+
+    timestamp, source, nmea = extract_tagblock(raw_line)
+
+    if not nmea.startswith("!AIVDM"):
+        return
+
+    if not valid_nmea_checksum(nmea):
+
+        print("\nINVALID CHECKSUM — DISCARDED")
+        print(nmea)
+        return
+
+    parts = nmea.split(",")
+
+    total_fragments = int(parts[1])
+    fragment_number = int(parts[2])
+    fragment_id = parts[3] if parts[3] else "no_id"
+
+    key = fragment_id
+
+    
+    # MULTI-FRAGMENT HANDLING
+    
+
+    if total_fragments > 1:
+
+        print("\nFragment received")
+        print("Fragment ID:", key)
+        print("Fragment:", fragment_number, "/", total_fragments)
+        print("Raw fragment:", nmea)
+
+        if key not in fragment_buffer:
+            fragment_buffer[key] = {}
+
+        fragment_buffer[key][fragment_number] = nmea
+
+        if len(fragment_buffer[key]) < total_fragments:
+            print("Waiting for remaining fragments...")
+            return
+
+        ordered_fragments = [
+            fragment_buffer[key][i]
+            for i in range(1, total_fragments + 1)
+        ]
+
+        print("\nALL FRAGMENTS RECEIVED — COMBINING NOW")
+        for frag in ordered_fragments:
+            print("Fragment:", frag)
+
+        del fragment_buffer[key]
+
+        try:
+
+            decoded = decode(*ordered_fragments).asdict()
+
+            print("\nCOMBINED MESSAGE SUCCESSFULLY")
+
+        except Exception as e:
+
+            print("DECODE FAILED:", e)
+            return
+
+    else:
+
+        try:
+
+            decoded = decode(nmea).asdict()
+
+        except Exception as e:
+
+            print("DECODE FAILED:", e)
+            return
+
+
+    
+    # ADD TIMESTAMP AND SOURCE
+    
+
+    decoded["timestamp"] = timestamp
+    decoded["source"] = source
+
+    safe_decoded = make_json_safe(decoded)
+
+    msg_type = safe_decoded.get("msg_type", "unknown")
+
+    
+    # PRINT FINAL MESSAGE
+    
+
+    print("\nFINAL DECODED MESSAGE")
+    print(json.dumps(safe_decoded, indent=2))
+
+    
+    # WRITE CSV
+    
+    writer = get_csv_writer(msg_type, safe_decoded.keys())
+    writer.writerow(safe_decoded)
+
+    
+    # SEND TO ANALYSIS QUEUE
+    
+    json_msg = json.dumps(safe_decoded)
+
+    channel.basic_publish(
+        exchange="",
+        routing_key=ANALYSIS_QUEUE,
+        body=json_msg,
+        properties=pika.BasicProperties(delivery_mode=2)
+    )
+
+    
+    # SEND TO VISUALIZATION QUEUE
+    
+
+    channel.basic_publish(
+        exchange="",
+        routing_key=VISUALIZATION_QUEUE,
+        body=json_msg,
+        properties=pika.BasicProperties(delivery_mode=2)
+    )
+
+    print("\nSENT TO QUEUES SUCCESSFULLY")
+    print("Analysis Queue:", ANALYSIS_QUEUE)
+    print("Visualization Queue:", VISUALIZATION_QUEUE)
+
+
+
+# CALLBACK
+
+
+def callback(ch, method, properties, body):
+
+    try:
+
+        raw_line = body.decode("utf-8").strip()
+
+        process_message(raw_line)
+
+    except Exception as e:
+
+        print("Processing Error:", e)
+
+    ch.basic_ack(delivery_tag=method.delivery_tag)
+
+
+
+# START CONSUMING
+
+channel.basic_consume(
+    queue=INPUT_QUEUE,
+    on_message_callback=callback
+)
+
+print("\nWAITING FOR AIS DATA...\n")
 
 try:
-    for method, props, body in channel.consume(INPUT_QUEUE, inactivity_timeout=1):
 
-        if body is None:
-            continue
+    channel.start_consuming()
 
-        raw = body.decode(errors="ignore").strip()
-        ts, src, clean = extract_tagblock(raw)
+except KeyboardInterrupt:
 
-        for msg in IterMessages(clean.encode()):
-            decoded = msg.decode().asdict()
-
-            # enrichment
-            decoded["timestamp"] = ts
-            decoded["source"] = src
-            decoded["station_id"] = STATION_ID
-
-            category = MESSAGE_MAP.get(decoded.get("msg_type"),"binary_misc")
-
-            if not clean_row(category, decoded):
-                continue
-
-            # CSV
-            get_writer(category).writerow(filter_row(category, decoded))
-
-            # REM
-            rem = generate_rem_event(category, decoded)
-            if rem:
-                get_rem_writer().writerow(rem)
-
-            # JSON publish
-            channel.basic_publish(
-                exchange="",
-                routing_key=OUTPUT_QUEUE,
-                body=json.dumps(decoded, default=str).encode(),
-                properties=pika.BasicProperties(delivery_mode=2)
-            )
-
-            count += 1
-            if count % 100 == 0:
-                print(f"Processed {count} messages")
-
-        channel.basic_ack(method.delivery_tag)
+    print("\nSTOPPING PIPELINE")
 
 finally:
-    for f in files.values(): f.close()
-    if rem_file: rem_file.close()
-    channel.close()
-    connection.close()
+
+    for f in csv_files.values():
+        f.close()
+
+    if channel.is_open:
+        channel.close()
+
+    if connection.is_open:
+        connection.close()
+
+    print("PIPELINE CLOSED")
