@@ -36,6 +36,8 @@ docker compose version
 
 Your project should look like this:
 
+```
+
 AIS-Queue-pipeline/
 │
 ├── docker-compose.yml
@@ -56,6 +58,7 @@ AIS-Queue-pipeline/
 ├── rem/
 └── README.md
 
+```
 ---
 
 # IMPORTANT – Input Data Requirement
