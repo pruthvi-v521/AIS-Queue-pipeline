@@ -66,9 +66,10 @@ AIS-Queue-pipeline/
 Before running the pipeline, you MUST place your AIS CSV file inside the `input/` folder.
 
 Example:
-
+```
 input/
 └── AIS_Klaipeda_From20250908_To20250909.csv
+```
 
 The ingest service automatically reads files from this folder and publishes them to RabbitMQ.
 
@@ -83,9 +84,10 @@ If this folder is empty:
 # First-Time Setup
 
 ## Step 1 — Clone repository
-
+```
 git clone <your-repo-url>
 cd AIS-Queue-pipeline
+```
 
 ---
 
@@ -102,19 +104,19 @@ cp your_file.csv input/
 ---
 
 ## Step 3 — Build containers
-
+```
 docker compose build
-
+```
 ---
 
 ## Step 4 — Start the pipeline
-
+```
 docker compose up
-
+```
 Run in background:
-
+```
 docker compose up -d
-
+```
 ---
 
 # What Starts Automatically
@@ -135,26 +137,26 @@ When Docker starts, these services run:
 ## View logs
 
 Processor:
-
+```
 docker compose logs -f processor
-
+```
 RabbitMQ:
-
+```
 docker compose logs -f rabbitmq
-
+```
 ---
 
 # RabbitMQ Dashboard
 
 Open:
-
+```
 http://localhost:15672
-
+```
 Credentials:
-
+```
 Username: ais
 Password: aispass
-
+```
 You can:
 
 * Inspect queues
@@ -180,13 +182,13 @@ Example files:
 # Health Checks
 
 Check service status:
-
+```
 docker compose ps
-
+```
 Healthy services show:
-
+```
 healthy
-
+```
 ---
 
 # Metrics
@@ -203,17 +205,17 @@ This confirms the pipeline is running correctly.
 # Stop / Restart
 
 Stop:
-
+```
 docker compose down
-
+```
 Remove volumes:
-
+```
 docker compose down -v
-
+```
 Restart:
-
+```
 docker compose up -d
-
+```
 ---
 
 # Adding New Services
