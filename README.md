@@ -264,7 +264,7 @@ docker compose build
 docker compose up
 
 Open:
-
+```
 http://localhost:15672
-
+```
 Pipeline should now be running.
