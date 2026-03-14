@@ -8,6 +8,8 @@ services:
       - "5672:5672"
       - "15672:15672"
     environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
       - RABBITMQ_DEFAULT_USER=ais
       - RABBITMQ_DEFAULT_PASS=aispass
     volumes:
@@ -46,6 +48,12 @@ services:
     container_name: ingest
     environment:
       - RABBIT_HOST=rabbitmq
+      - RABBIT_USER=guest
+      - RABBIT_PASS=guest
+    depends_on:
+      - rabbitmq
+    # volumes:
+    #   - ./wait-for-rabbitmq.sh:/app/wait-for-rabbitmq.sh
       - RABBIT_USER=ais
       - RABBIT_PASS=aispass
     depends_on:

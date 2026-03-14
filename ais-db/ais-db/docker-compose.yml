@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgis/postgis:latest
+    platform: linux/amd64
+    container_name: pg-postgis
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: apppassword
+      POSTGRES_DB: ais
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+      - ./db/backups:/backups:ro
+
+volumes:
+  pgdata:

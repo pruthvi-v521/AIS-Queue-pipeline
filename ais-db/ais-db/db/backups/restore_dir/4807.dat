@@ -1,0 +1,29 @@
+277199580	S/Y DIDA	2026-03-03 14:57:42.991105+01	111819	{"mmsi": 277199580, "partno": 0, "repeat": 0, "source": "JDS", "msg_type": 24, "shipname": "S/Y DIDA", "timestamp": "2025-09-10T15:59:58+00:00"}
+277199640	KLAIPEDA	2026-03-03 15:05:51.648359+01	119451	{"mmsi": 277199640, "partno": 0, "repeat": 0, "source": "JDS", "msg_type": 24, "shipname": "KLAIPEDA", "timestamp": "2025-09-09T20:59:03+00:00"}
+211694700	EARL GREY	2026-03-03 15:03:28.632145+01	117167	{"mmsi": 211694700, "partno": 0, "repeat": 0, "source": "JDS", "msg_type": 24, "shipname": "EARL GREY", "timestamp": "2025-09-10T15:02:34+00:00"}
+277494000	DANE	2026-03-03 15:05:48.728588+01	119402	{"mmsi": 277494000, "partno": 0, "repeat": 0, "source": "JDS", "msg_type": 24, "shipname": "DANE", "timestamp": "2025-09-09T09:35:07+00:00"}
+277199900	TILSTA-2	2026-03-03 15:06:07.798015+01	119716	{"mmsi": 277199900, "partno": 0, "repeat": 0, "source": "JDS", "msg_type": 24, "shipname": "TILSTA-2", "timestamp": "2025-09-11T01:46:50+00:00"}
+277199660	LT-12324	2026-03-03 15:05:35.850685+01	119186	{"mmsi": 277199660, "partno": 0, "repeat": 0, "source": "JDS", "msg_type": 24, "shipname": "LT-12324", "timestamp": "2025-09-10T11:28:25+00:00"}
+277377000	BALTAS	2026-03-03 15:03:27.040631+01	117140	{"mmsi": 277377000, "partno": 0, "repeat": 0, "source": "JDS", "msg_type": 24, "shipname": "BALTAS", "timestamp": "2025-09-10T15:12:17+00:00"}
+277202090	LT-20571	2026-03-03 14:54:20.696793+01	108686	{"mmsi": 277202090, "partno": 0, "repeat": 0, "source": "JDS", "msg_type": 24, "shipname": "LT-20571", "timestamp": "2025-09-09T11:53:22+00:00"}
+277177950	CONCORDIA LT-14223	2026-03-03 15:05:31.285128+01	119110	{"mmsi": 277177950, "partno": 0, "repeat": 0, "source": "JDS", "msg_type": 24, "shipname": "CONCORDIA LT-14223", "timestamp": "2025-09-10T16:44:37+00:00"}
+277358000	BRABANDER	2026-03-03 15:04:59.182224+01	118593	{"mmsi": 277358000, "partno": 0, "repeat": 0, "source": "JDS", "msg_type": 24, "shipname": "BRABANDER", "timestamp": "2025-09-09T15:54:01+00:00"}
+277199600	NJORD	2026-03-03 15:06:09.844525+01	119749	{"mmsi": 277199600, "partno": 0, "repeat": 0, "source": "JDS", "msg_type": 24, "shipname": "NJORD", "timestamp": "2025-09-09T15:50:22+00:00"}
+277199090	BETA	2026-03-03 15:01:06.285278+01	114922	{"mmsi": 277199090, "partno": 0, "repeat": 0, "source": "JDS", "msg_type": 24, "shipname": "BETA", "timestamp": "2025-09-10T07:29:43+00:00"}
+277201420	TILSTA	2026-03-03 15:04:45.684987+01	118379	{"mmsi": 277201420, "partno": 0, "repeat": 0, "source": "JDS", "msg_type": 24, "shipname": "TILSTA", "timestamp": "2025-09-08T13:41:10+00:00"}
+277199360	JOKER	2026-03-03 15:05:25.070075+01	119004	{"mmsi": 277199360, "partno": 0, "repeat": 0, "source": "JDS", "msg_type": 24, "shipname": "JOKER", "timestamp": "2025-09-10T16:54:50+00:00"}
+211379450	REDLINE	2026-03-03 14:50:32.102649+01	105112	{"mmsi": 211379450, "partno": 0, "repeat": 0, "source": "JDS", "msg_type": 24, "shipname": "REDLINE", "timestamp": "2025-09-09T14:31:46+00:00"}
+277141000	ODISEJA	2026-03-03 15:00:22.461843+01	114245	{"mmsi": 277141000, "partno": 0, "repeat": 0, "source": "JDS", "msg_type": 24, "shipname": "ODISEJA", "timestamp": "2025-09-09T13:47:03+00:00"}
+277201970	VELA LT-20370	2026-03-03 14:59:23.719356+01	113364	{"mmsi": 277201970, "partno": 0, "repeat": 0, "source": "JDS", "msg_type": 24, "shipname": "VELA LT-20370", "timestamp": "2025-09-09T11:36:48+00:00"}
+275041217	DISCOVERY	2026-03-03 13:44:56.501476+01	41954	{"mmsi": 275041217, "partno": 0, "repeat": 0, "source": "JDS", "msg_type": 24, "shipname": "DISCOVERY", "timestamp": "2025-09-08T03:24:27+00:00"}
+277202060	LT-20490	2026-03-03 14:51:22.910699+01	105922	{"mmsi": 277202060, "partno": 0, "repeat": 0, "source": "JDS", "msg_type": 24, "shipname": "LT-20490", "timestamp": "2025-09-08T13:52:18+00:00"}
+2770030	KLAIPEDAVTS	2026-03-03 15:06:10.012914+01	119752	{"mmsi": 2770030, "partno": 0, "repeat": 0, "source": "JDS", "msg_type": 24, "shipname": "KLAIPEDAVTS", "timestamp": "2025-09-09T15:50:32+00:00"}
+277201450	TITANIA	2026-03-03 15:05:58.566969+01	119565	{"mmsi": 277201450, "partno": 0, "repeat": 0, "source": "JDS", "msg_type": 24, "shipname": "TITANIA", "timestamp": "2025-09-10T21:55:41+00:00"}
+277559000	ERDMIS	2026-03-03 14:55:29.258843+01	109745	{"mmsi": 277559000, "partno": 0, "repeat": 0, "source": "JDS", "msg_type": 24, "shipname": "ERDMIS", "timestamp": "2025-09-09T13:35:17+00:00"}
+261034850	COSMO	2026-03-03 14:58:45.441056+01	112778	{"mmsi": 261034850, "partno": 0, "repeat": 0, "source": "JDS", "msg_type": 24, "shipname": "COSMO", "timestamp": "2025-09-09T11:04:31+00:00"}
+277188720	RAGANA LTU446	2026-03-03 14:57:28.0973+01	111590	{"mmsi": 277188720, "partno": 0, "repeat": 0, "source": "JDS", "msg_type": 24, "shipname": "RAGANA LTU446", "timestamp": "2025-09-08T13:10:12+00:00"}
+277199560	DALI	2026-03-03 15:05:51.108798+01	119442	{"mmsi": 277199560, "partno": 0, "repeat": 0, "source": "JDS", "msg_type": 24, "shipname": "DALI", "timestamp": "2025-09-10T19:52:15+00:00"}
+277199030	BANGA	2026-03-03 15:04:54.723633+01	118525	{"mmsi": 277199030, "partno": 0, "repeat": 0, "source": "JDS", "msg_type": 24, "shipname": "BANGA", "timestamp": "2025-09-10T21:30:47+00:00"}
+\.
+
+

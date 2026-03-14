@@ -9,6 +9,13 @@ import re
 
 # CONFIGURATION (These 3 queues)
 
+# ==========================================================
+# ENV CONFIG
+# ==========================================================
+RABBIT_HOST = os.getenv("RABBIT_HOST", "localhost")
+RABBIT_USER = os.getenv("RABBIT_USER", "guest")
+RABBIT_PASS = os.getenv("RABBIT_PASS", "guest")
+STATION_ID = os.getenv("STATION_ID", "KLAIPEDA_01")
 
 INPUT_QUEUE = "ais_nmea_queue"
 ANALYSIS_QUEUE = "analysis_queue"
