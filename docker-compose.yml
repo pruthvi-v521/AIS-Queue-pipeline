@@ -54,10 +54,10 @@ services:
       - rabbitmq
     # volumes:
     #   - ./wait-for-rabbitmq.sh:/app/wait-for-rabbitmq.sh
-      - RABBIT_USER=ais
-      - RABBIT_PASS=aispass
-    depends_on:
-      - rabbitmq
+    #   - RABBIT_USER=ais
+    #   - RABBIT_PASS=aispass
+    # depends_on:
+    #   - rabbitmq
     volumes:
       - ./wait-for-rabbitmq.sh:/app/wait-for-rabbitmq.sh
     entrypoint: ["/app/wait-for-rabbitmq.sh", "python", "ingest/csv_to_queue.py"]

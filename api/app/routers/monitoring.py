@@ -28,7 +28,7 @@ def get_latest_positions(db: Session = Depends(get_db)):
             "longitude": lon,     
             "sog": pos.sog,
             "cog": pos.cog,
-            "ts": pos.ts
+            "ts": pos.ts , 
         })
 
     return result
