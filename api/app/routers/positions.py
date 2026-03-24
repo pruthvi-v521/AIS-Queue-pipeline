@@ -10,13 +10,15 @@ router = APIRouter(prefix="/positions")
 
 @router.get("/" , response_model=list[schemas.AISPositionSchema])
 
-def get_positions(mmsi : int , 
-                start : Optional[datetime]=Query(None , descripton = "Start datetime"),
+def get_positions(mmsi :  Optional[int] = Query(None, description="Filter by MMSI") , 
+                start : Optional[datetime]=Query(None , description = "Start datetime"),
                 end: Optional[datetime] = Query(None, description="End datetime"), 
                 db: Session = Depends(get_db)):
   
   
-  query = db.query(models.AISPosition).filter(models.AISPosition.mmsi == mmsi)
+  query = db.query(models.AISPosition)
+  if mmsi:
+        query = query.filter(models.AISPosition.mmsi == mmsi)
   if start:
     query = query.filter(models.AISPosition.ts >= start)
 

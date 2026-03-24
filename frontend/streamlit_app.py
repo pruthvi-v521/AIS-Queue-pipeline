@@ -11,6 +11,8 @@ from streamlit_folium import st_folium
 
 st.set_page_config(page_title="AIS Dashboard", layout="wide")
 
+
+
 st.markdown("""
     <style>
 
@@ -108,10 +110,8 @@ if selected == "Vessels":
 
     df["mmsi"] = df["mmsi"].astype(str)
 
-    
     df["updated_at"] = pd.to_datetime(df["updated_at"], utc=True)
     df["updated_at"] = df["updated_at"].dt.strftime("%d %b %Y, %H:%M UTC")
-
     
     df["shipname"] = df["shipname"].fillna("Unknown Vessel")
 
@@ -121,7 +121,6 @@ if selected == "Vessels":
         "shipname": "Vessel Name",
         "updated_at": "Last Seen (UTC)"
     })
-
     st.dataframe(df, use_container_width=True)
 
 if selected == "Live Vessel Map":
@@ -167,18 +166,13 @@ if selected == "Live Vessel Map":
 if selected== "Vessel Trajectory":
 
     st.header("Vessel Trajectory")
-
-
     mmsi = st.text_input("Enter MMSI")
-
     if mmsi:
 
         positions = get_positions_by_mmsi(mmsi)
-
         if positions:
 
             df = pd.DataFrame(positions)
-           
             df = df[df["mmsi"] ==int(mmsi)]
             df = df.dropna(subset=["latitude", "longitude"])
 
