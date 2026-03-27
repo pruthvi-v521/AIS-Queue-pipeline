@@ -27,8 +27,17 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # RABBITMQ CONNECTION
 
+credentials = pika.PlainCredentials(
+    RABBIT_USER,
+    RABBIT_PASS
+)
+
 connection = pika.BlockingConnection(
-    pika.ConnectionParameters(host="localhost")
+    pika.ConnectionParameters(
+        host=RABBIT_HOST,
+        port=5672,
+        credentials=credentials
+    )
 )
 
 channel = connection.channel()
