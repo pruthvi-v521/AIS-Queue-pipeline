@@ -1,4 +1,3 @@
-
 services:
 
   rabbitmq:
@@ -10,8 +9,6 @@ services:
     environment:
       - RABBITMQ_DEFAULT_USER=guest
       - RABBITMQ_DEFAULT_PASS=guest
-      - RABBITMQ_DEFAULT_USER=ais
-      - RABBITMQ_DEFAULT_PASS=aispass
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     restart: always
@@ -21,13 +18,14 @@ services:
       timeout: 5s
       retries: 5
 
+
   processor:
     build: .
     container_name: processor
     environment:
       - RABBIT_HOST=rabbitmq
-      - RABBIT_USER=ais
-      - RABBIT_PASS=aispass
+      - RABBIT_USER=guest
+      - RABBIT_PASS=guest
       - STATION_ID=station-1
     depends_on:
       - rabbitmq
@@ -43,6 +41,7 @@ services:
       timeout: 5s
       retries: 3
 
+
   ingest:
     build: .
     container_name: ingest
@@ -52,21 +51,43 @@ services:
       - RABBIT_PASS=guest
     depends_on:
       - rabbitmq
-    # volumes:
-    #   - ./wait-for-rabbitmq.sh:/app/wait-for-rabbitmq.sh
-    #   - RABBIT_USER=ais
-    #   - RABBIT_PASS=aispass
-    # depends_on:
-    #   - rabbitmq
     volumes:
       - ./wait-for-rabbitmq.sh:/app/wait-for-rabbitmq.sh
     entrypoint: ["/app/wait-for-rabbitmq.sh", "python", "ingest/csv_to_queue.py"]
     restart: on-failure
 
+
   anomaly-detector:
     image: alpine
     command: ["sh", "-c", "while true; do sleep 60; done"]
     restart: always
+
+
+  api:
+    build: .
+    container_name: ais-api
+    command: ["python", "-m", "uvicorn", "api.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_HOST=host.docker.internal
+      - DB_PORT=5432
+      - DB_NAME=ais
+      - DB_USER=appuser
+      - DB_PASS=password
+    depends_on:
+      - rabbitmq
+
+
+  frontend:
+    build: .
+    container_name: ais-frontend
+    command: ["python", "-m", "streamlit", "run", "frontend/streamlit_app.py", "--server.port", "8501", "--server.address", "0.0.0.0"]
+    ports:
+      - "8501:8501"
+    depends_on:
+      - api
+
 
 volumes:
   rabbitmq_data:
