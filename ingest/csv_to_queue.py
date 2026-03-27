@@ -7,7 +7,7 @@ QUEUE_NAME = "ais_nmea_queue"
 
 # Connect to RabbitMQ
 connection = pika.BlockingConnection(
-    pika.ConnectionParameters(host="rabbitmq", port=5672, virtual_host="/", credentials=pika.PlainCredentials("ais", "aispass"))
+    pika.ConnectionParameters(host="rabbitmq", port=5672, virtual_host="/", credentials=pika.PlainCredentials("guest", "guest"))
 )
 channel = connection.channel()
 
