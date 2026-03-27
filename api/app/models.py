@@ -50,23 +50,3 @@ class LatestPosition(Base):
     updated_at = Column(DateTime)
     
     
-class CollisionAlert(Base):
-    __tablename__ = "ais_collision_alert"
-
-    id = Column(Integer, primary_key=True, index=True)
-    created_at = Column(DateTime)
-    ts = Column(DateTime)
-    mmsi_a = Column(Integer)
-    mmsi_b = Column(Integer)
-    dcpa_m = Column(Float)
-    tcpa_s = Column(Float)
-    geom_a = Column(String)  # WKB format
-    geom_b = Column(String)  # WKB format
-    sog_a = Column(Float)
-    cog_a = Column(Float)
-    sog_b = Column(Float)
-    cog_b = Column(Float)
-    severity = Column(String)
-    reason = Column(String, nullable=True)
-    details = Column(String, nullable=True)
-
