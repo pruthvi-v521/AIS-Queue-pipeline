@@ -59,7 +59,7 @@ st.markdown(
 )
 
 try:
-    health = requests.get("http://127.0.0.1:8000/health").json()
+    health = requests.get("http://ais-api:8000/health").json()
     st.markdown(
     f'<div class="api-status" style="background:#0D3B6E;border:1px solid #00B4D8;'
     f'border-radius:8px;padding:12px 20px;color:#00B4D8;font-weight:bold;">● {health["status"]}</div>',
