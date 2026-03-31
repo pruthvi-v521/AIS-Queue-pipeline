@@ -191,8 +191,8 @@ You can:
 ---
 
 On Terminal 2:
-run the database PostgreSQL
-run the api with commands:
+1.run the database PostgreSQL 
+2.run the api with commands:
      uvicorn app.main:app --reload
     
 
