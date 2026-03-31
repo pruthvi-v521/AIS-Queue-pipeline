@@ -38,25 +38,47 @@ Your project should look like this:
 
 ```
 
-AIS-Queue-pipeline/
+AIS-Q-Pipeline
+├── api/
+│   ├── app/
+│   │   ├── routers/
+│   │   │   ├── health.py
+│   │   │   ├── monitoring.py
+│   │   │   ├── positions.py
+│   │   │   └── vessels.py
+│   │   ├── database.py
+│   │   ├── main.py
+│   │   ├── models.py
+│   │   └── schemas.py
+│   └── __pycache__/
 │
-├── docker-compose.yml
-├── Dockerfile
-├── wait-for-rabbitmq.sh
-├── requirements.txt
-│
-├── input/                ← REQUIRED (place CSV here)
-├── outputs/              ← auto-created
+├── frontend/
+│   ├── streamlit_app.py
+│   ├── api_client.py
+│   └── __pycache__/
 │
 ├── ingest/
 │   └── csv_to_queue.py
 │
 ├── processor/
-│   ├── realtime_pipeline.py
-│   └── healthcheck.py
+│   └── (processing scripts)
+│
+├── input/
+│   └── (raw input files)
+│
+├── outputs/
+│   └── (generated outputs)
 │
 ├── rem/
-└── README.md
+│   └── (misc or archived files)
+│
+├── docker-compose.yml
+├── Dockerfile
+├── environment.yml
+├── requirements.txt
+├── README.md
+└── .gitignore
+
 
 ```
 ---
