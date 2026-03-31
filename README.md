@@ -193,11 +193,13 @@ You can:
 On Terminal 2:
 1.run the database PostgreSQL 
 2.run the api with commands:
+     cd api
      uvicorn app.main:app --reload
     
 
 On Terminal 3: 
 run the frontend with commands : 
+cd frontend
 streamlit run streamlit_app.py
 
 
