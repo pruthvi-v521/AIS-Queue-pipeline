@@ -10,6 +10,9 @@ The system:
 * Publishes messages to RabbitMQ
 * Processes and enriches AIS data
 * Stores cleaned results for downstream analysis
+* Creates a PostgreSQL database
+* exposes the database using API
+* Captures everything on the frontend 
 * Runs fully containerized using Docker Compose
 
 No manual Python installation is required.
@@ -124,7 +127,7 @@ Copy your AIS CSV:
 cp your_file.csv input/
 
 ---
-
+On  Terminal 1 :
 ## Step 3 — Build containers
 ```
 docker compose build
@@ -186,6 +189,17 @@ You can:
 * Monitor consumers
 
 ---
+
+On Terminal 2:
+run the database PostgreSQL
+run the api with commands:
+     uvicorn app.main:app --reload
+    
+
+On Terminal 3: 
+run the frontend with commands : 
+streamlit run streamlit_app.py
+
 
 # Outputs
 
